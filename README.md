@@ -1,156 +1,115 @@
-Contribution: 2019-11-17 20:00
+# Stake Pool Dashboard
 
-Contribution: 2019-11-17 20:01
+Code to build a real-time dashboard for stake pools
 
-Contribution: 2019-11-17 20:02
+## Introduction
 
-Contribution: 2019-11-17 20:03
+The idea is to make real-time RPC calls to inspect the state
+of the stake pools and validators, 
+and log this state as it changes in real time.
 
-Contribution: 2019-11-17 20:04
+A validator is something that validates the blockchain.
+It can receive stake delegated to it,
+and earns rewards that are given to the owners of the stake
+that are delegated to it.
 
-Contribution: 2019-11-17 20:05
+A stake pool is a pool of stake. Each stake pool delegates
+stake to many different validators. 
+There is a one-to-many relationship between a stake pool
+and a validator. 
+`StakePoolValidators = Array<[Validator, number]>` where
+`number` is the amount of stake delegated to that validator.
 
-Contribution: 2019-11-18 20:00
+## Architecture
 
-Contribution: 2019-11-18 20:01
+### ValidatorHistory Table
 
-Contribution: 2019-11-18 20:02
+A validator history entry is a snapshot of the validator's state
+at some point in time. This is used to calculate the performance
+of the validator.
 
-Contribution: 2019-11-18 20:03
+- Validator pubkey as foreign key (? <-- does this work)
+- Epoch + Timestamp is the composite primary key
+- Each validator-epoch-timestamp contains:
+    - vote pubkey
+    - epoch
+    - timestamp
+    - activatedStake
+    - commission
+    - epochVoteAccount
+    - epochCredits
+    - lastVote
 
-Contribution: 2019-11-18 20:04
+### StakePool Table
 
-Contribution: 2019-11-18 20:05
+A stake pool
 
-Contribution: 2019-11-18 20:06
+A stake pool can change its validator set only every epoch
+(not in real time). Hence we do not need to have StakePool
+and StakePoolHistory. (is this good practice?)
 
-Contribution: 2019-11-18 20:07
+- Each Stake Pool + Epoch is a composite primary key
+- Each stake pool epoch contains:
+    - stakerPubKey
+    - epoch
+    - managerPubkey
+    - depositAuthority
+    - poolMint
+    - totalStakeLamports // only updated every epoch
+    - poolTokenSupply
+    - validators: `Array<[Validator, number]>`
 
-Contribution: 2019-11-18 20:08
+### ValidatorPerformance Table 
 
-Contribution: 2019-11-19 20:00
+"Composite" table computed from historical validator performance
 
-Contribution: 2019-11-20 20:00
+Main thing is: at every epoch, how much did they start with, how much did they end with
+Things like uptime, APY, etc etc should all be calculated.
+This can be calculated from the ValidatorLog history 
 
-Contribution: 2019-11-20 20:01
+So i'm thinking of running a cronjob and filling up the table
 
-Contribution: 2019-11-20 20:02
 
-Contribution: 2019-11-20 20:03
+### PoolPerformance Table
 
-Contribution: 2019-11-20 20:04
+- "Composite" table that is computed from the validators
 
-Contribution: 2019-11-20 20:05
+For each valdiator, we calculate its performance, and from there we
+can calculate the pool's performance.
 
-Contribution: 2019-11-20 20:06
 
-Contribution: 2019-11-20 20:07
+## Obsolete stuff
 
-Contribution: 2019-11-20 20:08
+The amount that is staked changes only on epoch boundaries [^0]:
 
-Contribution: 2019-11-20 20:09
+> A delegation or deactivation takes several epochs to complete, with a fraction of the delegation becoming active or inactive at each epoch boundary after the transaction containing the instructions has been submitted to the cluster.
 
-Contribution: 2019-11-21 20:00
+[^0]: https://docs.solana.com/staking/stake-accounts
 
-Contribution: 2019-11-21 20:01
+This means that it's sufficient to calculate a validator's performance only every epoch -- we leave the slot-by-slot delinquency calculations 
 
-Contribution: 2019-11-21 20:02
 
-Contribution: 2019-11-21 20:03
+So each stake pool should essentially have a data structure that goes like: in every epoch, how much did it delegate to each validator?
 
-Contribution: 2019-11-24 20:00
+Given the stake delegated to each validator at the start of the epoch, and the eventual result stake,
+we can find the stake a
 
-Contribution: 2019-11-24 20:01
+How are stake rewards given out? Every epoch?
 
-Contribution: 2019-11-24 20:02
+> During redemption, the stake program counts the points earned by the stake for each epoch, multiplies that by the epoch's point value, and transfers lamports in that amount from a rewards account into the stake and vote accounts according to the vote account's commission setting.
 
-Contribution: 2019-11-24 20:03
+> https://docs.solana.com/terminology#point
+> A weighted credit in a rewards regime. In the validator rewards regime, the number of points owed to a stake during redemption is the product of the vote credits earned and the number of lamports staked.
 
-Contribution: 2019-11-24 20:04
+> https://docs.solana.com/terminology#vote-credit
+> A reward tally for validators. A vote credit is awarded to a validator in its vote account when the validator reaches a root.
 
-Contribution: 2019-11-24 20:05
 
-Contribution: 2019-11-25 20:00
+> https://docs.solana.com/cluster/stake-delegation-and-rewards#basics
+> The network pays rewards from a portion of network inflation. The number of lamports available to pay rewards for an epoch is fixed and must be evenly divided among all staked nodes according to their relative stake weight and participation. The weighting unit is called a point.
 
-Contribution: 2019-11-25 20:01
+Rewards for an epoch are not available until the end of that epoch.
 
-Contribution: 2019-11-25 20:02
+At the end of each epoch, the total number of points earned during the epoch is summed and used to divide the rewards portion of epoch inflation to arrive at a point value. This value is recorded in the bank in a sysvar that maps epochs to point values.
 
-Contribution: 2019-11-26 20:00
-
-Contribution: 2019-11-26 20:01
-
-Contribution: 2019-11-26 20:02
-
-Contribution: 2019-11-26 20:03
-
-Contribution: 2019-11-26 20:04
-
-Contribution: 2019-11-26 20:05
-
-Contribution: 2019-11-27 20:00
-
-Contribution: 2019-11-27 20:01
-
-Contribution: 2019-11-27 20:02
-
-Contribution: 2019-11-27 20:03
-
-Contribution: 2019-11-27 20:04
-
-Contribution: 2019-11-27 20:05
-
-Contribution: 2019-11-27 20:06
-
-Contribution: 2019-11-27 20:07
-
-Contribution: 2019-11-27 20:08
-
-Contribution: 2019-11-28 20:00
-
-Contribution: 2019-11-28 20:01
-
-Contribution: 2019-11-28 20:02
-
-Contribution: 2019-11-28 20:03
-
-Contribution: 2019-11-29 20:00
-
-Contribution: 2019-11-29 20:01
-
-Contribution: 2019-11-29 20:02
-
-Contribution: 2019-11-29 20:03
-
-Contribution: 2019-11-29 20:04
-
-Contribution: 2019-11-29 20:05
-
-Contribution: 2019-11-29 20:06
-
-Contribution: 2019-11-29 20:07
-
-Contribution: 2019-11-29 20:08
-
-Contribution: 2019-12-02 20:00
-
-Contribution: 2019-12-03 20:00
-
-Contribution: 2019-12-03 20:01
-
-Contribution: 2019-12-03 20:02
-
-Contribution: 2019-12-04 20:00
-
-Contribution: 2019-12-04 20:01
-
-Contribution: 2019-12-04 20:02
-
-Contribution: 2019-12-04 20:03
-
-Contribution: 2019-12-04 20:04
-
-Contribution: 2019-12-04 20:05
-
-Contribution: 2019-12-04 20:06
-
+During redemption, the stake program counts the points earned by the stake for each epoch, multiplies that by the epoch's point value, and transfers lamports in that amount from a rewards account into the stake and vote accounts according to the vote account's commission setting.
